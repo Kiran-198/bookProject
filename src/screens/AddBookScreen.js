@@ -1,26 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState ,useEffect,useCallback} from 'react';
 import { View, Text, TextInput, TouchableOpacity,Button, StyleSheet, Alert, Image,Modal,TouchableWithoutFeedback, ScrollView,KeyboardAvoidingView,Platform,NativeModules } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useDispatch } from 'react-redux';
+import { useFocusEffect } from '@react-navigation/native';
 // import { addCustomBook } from '../Redux/Book/BookSlice';
 import { addLocalBook ,updateLocalBook,updateApiBook} from '../Redux/Book/BookSlice';
 import { useNavigation } from '@react-navigation/native';
 import CategoryModal from '../components/CategoryModal';
 // const { ToastModule } = NativeModules;
 import { useToast } from '../context/ToastContext';
+import {useContext} from 'react'
+import { ThemeContext } from '../context/ThemeContext'; 
+import { StatusBar ,Animated} from 'react-native';
+import * as NavigationBar from 'expo-navigation-bar';
+import * as Notifications from 'expo-notifications'
 
 const AddBookScreen = ({route} ) => {
   const bookToEdit= route?.params?.bookToEdit
   const { showToast } = useToast()
-  
+   const { theme,isDarkTheme} = useContext(ThemeContext);
   //  console.log("hello book for edit ",bookToEdit);
    
   const dispatch = useDispatch(); 
   const navigation=useNavigation();
   const [title, setTitle] = useState(bookToEdit?.volumeInfo?.title || '');
   // console.log("hi",title);
-  const [price, setPrice] = useState( bookToEdit?.saleInfo?.listPrice?.amount?.toString() || bookToEdit?.volumeInfo?.price?.toString() || '' );
+const [price, setPrice] = useState(() => {
+  if (!bookToEdit) return ""; // brand new book → empty input
+
+  if (bookToEdit?.saleInfo?.saleability === "NOT_FOR_SALE") {
+    return "Not for sale";
+  }
+  const apiPrice = bookToEdit?.saleInfo?.listPrice?.amount 
+                ?? bookToEdit?.volumeInfo?.price;
+  if (apiPrice === undefined || apiPrice === null) {
+    return "Not for sale"; 
+  }
+  if (apiPrice === 0) return "Free";
+  return apiPrice.toString();
+})
   const [author,setAuthor]=useState(bookToEdit?.volumeInfo?.authors?.[0] || '')
   const [description, setDescription] = useState(bookToEdit?.volumeInfo?.description || '');
   const [etag,setetag] = useState(bookToEdit?.etag || '')
@@ -31,8 +50,8 @@ const AddBookScreen = ({route} ) => {
   const [printType,setPrintType]=useState(bookToEdit?.volumeInfo?.printType || '')
   const [selectedCategory,setSelectedCategory]=useState(bookToEdit?.volumeInfo?.categories?.[0] || '')
   const [modalVisible, setModalVisible] = useState(false);
-  const [image, setImage] = useState(bookToEdit?.volumeInfo?.imageLinks?.thumbnail  || null);
-  const [link,setLink]=useState(bookToEdit?.volumeInfo?.infoLink || bookToEdit?.volumeInfo?.link|| null)
+  const [image, setImage] = useState(bookToEdit?.volumeInfo?.imageLinks?.thumbnail  || '');
+  const [link,setLink]=useState(bookToEdit?.volumeInfo?.infoLink || bookToEdit?.volumeInfo?.link|| '')
   const isOnlyLetters = (text) => /^[A-Za-z\s]+$/.test(text)
   const categories=['Businesss','Economics','Computers']
 
@@ -71,8 +90,18 @@ const AddBookScreen = ({route} ) => {
       Alert.alert('Error');
     }
   };
+  const triggerLocalNotification = async (bookTitle) => {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: "Book Added!",
+      body: `Your book "${bookTitle}" was added successfully.`,
+      sound: true,
+    },
+    trigger: null, // null = show immediately
+  });
+};
 
-  const handleSubmit = () => {
+  const handleSubmit = async() => {
     const trimmedTitle = title.trim();
   const trimmedAuthor = author.trim();
   const trimmedDescription = description.trim();
@@ -103,11 +132,22 @@ const AddBookScreen = ({route} ) => {
     Alert.alert('Validation Error', 'Description must be at least 10 characters.');
     return;
   }
+ 
   const numericPrice = parseFloat(trimmedPrice);
+if (
+  trimmedPrice.toLowerCase() !== "not for sale" &&
+  trimmedPrice.toLowerCase() !== "free" && 
+  trimmedPrice.toLowerCase() !== "NaN"
+) {
+
   if (isNaN(numericPrice) || numericPrice <= 0) {
-    Alert.alert('Validation Error', 'Price must be a number greater than 0.');
+    Alert.alert(
+      "Validation Error",
+      "Price must be a number greater than 0, or 'Free', or 'Not for sale'."
+    );
     return;
   }
+}
   if (!trimmedKind.includes(trimmedKind)) {
     Alert.alert('Validation Error', 'please enter valid kind');
     return;
@@ -119,7 +159,7 @@ const AddBookScreen = ({route} ) => {
   }
   const datePattern = /^\d{4}-\d{2}-\d{2}$/;
   if (!datePattern.test(trimmedPublishedDate)) {
-    Alert.alert('Validation Error', 'Published date must be in YYYY-DD-MM format.');
+    Alert.alert('Validation Error', 'Published date must be in YYYY-MM-DD format.');
     return;
   }
   const intPageCount = parseInt(trimmedPageCount);
@@ -140,6 +180,22 @@ const AddBookScreen = ({route} ) => {
     Alert.alert('Validation Error', 'Please fill the link field.');
     return;
   }
+
+let finalPrice = "Not for sale"; // default
+const lowered = trimmedPrice.toLowerCase();
+
+if (lowered === "not for sale") {
+  finalPrice = "Not for sale";
+} else if (lowered === "free" || parseFloat(trimmedPrice) === 0) {
+  finalPrice = "Free";
+} else {
+  const numericPrice = parseFloat(trimmedPrice);
+  if (isNaN(numericPrice) || numericPrice <= 0) {
+    Alert.alert("Validation Error", "Price must be a number > 0, or 'Free', or 'Not for sale'.");
+    return;
+  }
+  finalPrice = numericPrice.toString();
+}
     const newBook = {
       //  id:  bookToEdit ? bookToEdit.id : Date.now().toString(),
       etag:trimmedEtag,
@@ -155,7 +211,7 @@ const AddBookScreen = ({route} ) => {
       publishedDate:trimmedPublishedDate,
       pageCount:intPageCount,
       printType:trimmedPrintType,
-      price:numericPrice,
+      price: finalPrice,
       description: trimmedDescription,
       link:trimmedLink,
       imageLinks: {
@@ -163,31 +219,36 @@ const AddBookScreen = ({route} ) => {
       },
     }
     };
-    // dispatch(addLocalBook(newBook))
-  //   ToastModule.show("Book Added!")
-  // .then(res => console.log(res))
-  // .catch(err => console.error(err));
 if (bookToEdit) {
-  if (bookToEdit?.isApiBook) {
-    dispatch(updateApiBook(newBook));   
+    if (bookToEdit?.isApiBook) {
+      dispatch(updateApiBook(newBook));   
+      showToast("Book Edited ");
+      await triggerLocalNotification(trimmedTitle); // ✅ works now
+    } else {
+      dispatch(updateLocalBook(newBook));
+      showToast("Book Edited ");
+      await triggerLocalNotification(trimmedTitle); // ✅ works now
+    }
   } else {
-    dispatch(updateLocalBook(newBook))
+    dispatch(addLocalBook(newBook));  
+    showToast("Book Added ");
+    await triggerLocalNotification(trimmedTitle); // ✅ works now
   }
-      showToast("Book Edited ")
-} else {
-  dispatch(addLocalBook(newBook));  
-      showToast("Book Added ")
-} 
       navigation.navigate('Home') 
   };
 
+  useFocusEffect(
+    useCallback(() => {
+      NavigationBar.setButtonStyleAsync("dark");
+    }, [])
+  );
   return (
     <SafeAreaProvider>
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={80} >
         <ScrollView  keyboardShouldPersistTaps="handled">
-          <View style={styles.container}>
-            <Text style={styles.label}>Book Title</Text>
+          <View style={[styles.container, { backgroundColor: theme.background }]}>
+            <Text style={[styles.label, { color: theme.text }]}>Book Title</Text>
             <TextInput
               style={styles.input}
               value={title}
@@ -195,15 +256,15 @@ if (bookToEdit) {
               onChangeText={handleTitleChange}
             />
 
-            <Text style={styles.label}>Price</Text>
-            <TextInput
-              style={styles.input}
-              value={price}
-              placeholder="Price"
-              onChangeText={setPrice}
-              keyboardType="numeric"
-            />
-            <Text style={styles.label}>Description</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Price</Text>
+           <TextInput
+            style={styles.input}
+            value={price}
+            placeholder='Enter price or type "Not for sale"'
+            onChangeText={setPrice}
+            keyboardType={/^\d+$/.test(price) ? "numeric" : "default"} // ✅ safe check
+          />
+            <Text style={[styles.label, { color: theme.text }]}>Description</Text>
             <TextInput
               style={[styles.input, { height: 100 }]}
               value={description}
@@ -212,42 +273,42 @@ if (bookToEdit) {
               numberOfLines={3}
               multiline
             />
-            <Text style={styles.label}>Author</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Author</Text>
             <TextInput
               style={styles.input}
               value={author}
               placeholder="Author"
               onChangeText={handleAuthorChange}
             />
-            <Text style={styles.label}>Kind</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Kind</Text>
             <TextInput
               style={styles.input}
               value={kind}
               placeholder="Kind "
               onChangeText={setKind}
             />
-            <Text style={styles.label}>Etag</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Etag</Text>
             <TextInput
               style={styles.input}
               value={etag}
               placeholder="Etag"
               onChangeText={setetag}
             />
-            <Text style={styles.label}>Publisher</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Publisher</Text>
             <TextInput
               style={styles.input}
               value={publisher}
               placeholder="Publisher"
               onChangeText={handlePublisherChange}
             />
-            <Text style={styles.label}>PublishedDate</Text>
+            <Text style={[styles.label, { color: theme.text }]}>PublishedDate</Text>
             <TextInput
               style={styles.input}
               value={publishedDate}
               placeholder="PublishedDate in YYYY-DD-MM Format"
               onChangeText={setPublishedData}
             />
-            <Text style={styles.label}>PageCount</Text>
+            <Text style={[styles.label, { color: theme.text }]}>PageCount</Text>
             <TextInput
               style={styles.input}
               value={pageCount}
@@ -255,7 +316,7 @@ if (bookToEdit) {
               onChangeText={setPageCount}
                keyboardType="numeric"
             />
-            <Text style={styles.label}>PrintType</Text>
+            <Text style={[styles.label, { color: theme.text }]}>PrintType</Text>
             <TextInput
               style={styles.input}
               value={printType}
@@ -263,19 +324,21 @@ if (bookToEdit) {
               onChangeText={setPrintType}
             />
             <View style={{ marginTop: 20 }}>
-          <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 8 }}>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 8,color:theme.text }}>
             Selected Category
           </Text>
 
           <TouchableOpacity
             style={{
-              backgroundColor: selectedCategory ? '#f5be84' : '#eee',
+              backgroundColor: selectedCategory ? '#64f59eff' : '#eee',
               paddingVertical: 10,
               paddingHorizontal: 20,
               borderRadius: 10,
               borderWidth:1,
-              alignItems:'center'
               // marginLeft:0
+              color:theme.text,
+              justifyContent:'center',
+              alignItems:'center'
             }}
             onPress={() => setModalVisible(true)}
           >
@@ -294,7 +357,7 @@ if (bookToEdit) {
            </View>
             
 
-             <Text style={styles.label}>Link</Text>
+             <Text style={[styles.label, { color: theme.text }]}>Link</Text>
             <TextInput
               style={styles.input}
               value={link}
@@ -330,10 +393,11 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    padding: 15,
+    padding: 10,
     marginTop: 5,
-    borderRadius: 5,
-    fontSize:18
+    borderRadius: 10,
+    fontSize:18,
+    backgroundColor:'white'
   },
   button: {
     backgroundColor: '#007bff',
@@ -354,6 +418,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#64f59eff',
     borderRadius: 10,
+    borderWidth:0.8
   },
   imagePreview: {
     width: '100%',

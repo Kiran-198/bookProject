@@ -5,20 +5,24 @@ import { useRoute } from '@react-navigation/native';
 import { Pressable,Linking } from 'react-native';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { useSelector } from 'react-redux';
+import { useContext} from 'react';
+import { ThemeContext } from '../context/ThemeContext';
 const Tab = createMaterialTopTabNavigator();
+import { StatusBar } from 'react-native';
 
 function  About({route}){
   const {book}=route.params
   // console.log("hello books from home",book);
+ const { theme } = useContext(ThemeContext);
   
   return(
     // <ScrollView>
-  <View style={styles.tabContent}>
-    <Text style={styles.text1}><Text style={styles.label}> Kind : </Text>{book?.kind}</Text>
-    <Text style={styles.text1}><Text style={styles.label}> Id : </Text>{book?.id}</Text>
-    <Text style={styles.text1}><Text style={styles.label}> Etag : </Text> {book?.etag}</Text>
-    <Text style={styles.text1}>
-  <Text style={styles.label}> Price: </Text> 
+  <View style={[styles.tabContent, { backgroundColor: theme.background }]}>
+    <Text style={[styles.text1, { color: theme.text }]}><Text style={[styles.label, { color: theme.text }]}> Kind : </Text>{book?.kind}</Text>
+    <Text style={[styles.text1, { color: theme.text }]}><Text style={[styles.label, { color: theme.text }]}> Id : </Text>{book?.id}</Text>
+    <Text style={[styles.text1, { color: theme.text }]}><Text style={[styles.label, { color: theme.text }]}> Etag : </Text> {book?.etag}</Text>
+    <Text style={[styles.text1, { color: theme.text }]}>
+  <Text style={[styles.label, { color: theme.text }]}> Price: </Text> 
   {
     book?.saleInfo?.listPrice?.amount
       ? `${book.saleInfo.listPrice.amount} ${book.saleInfo.listPrice.currencyCode || ''}`
@@ -34,16 +38,17 @@ function  About({route}){
 }
 function  VolumeInfo({route}){
   const {book}=route.params
+  const { theme } = useContext(ThemeContext);
  const url = book?.volumeInfo?.infoLink || book?.volumeInfo?.link;
   return(
     // <ScrollView>
-  <View style={styles.tabContent}>
-    <Text style={styles.text2}><Text style={styles.label}> Title: </Text> {book?.volumeInfo?.title}</Text>
-    <Text style={styles.text2}><Text style={styles.label}> Category: </Text> {book?.volumeInfo?.categories}</Text>
-    <Text style={styles.text2}><Text style={styles.label}> Publisher: </Text> {book?.volumeInfo?.publisher}</Text>
-    <Text style={styles.text2}><Text style={styles.label}> PublishedDate: </Text> {book?.volumeInfo?.publishedDate}</Text>
-    <Text style={styles.text2}><Text style={styles.label}> PageCount: </Text> {book?.volumeInfo?.pageCount}</Text>
-    <Text style={styles.text2}><Text style={styles.label}> PrintType: </Text> {book?.volumeInfo?.printType}</Text>
+  <View style={[styles.tabContent, { backgroundColor: theme.background }]}>
+    <Text style={[styles.text2, { color: theme.text }]}><Text style={[styles.label, { color: theme.text }]}> Title: </Text> {book?.volumeInfo?.title}</Text>
+    <Text style={[styles.text2, { color: theme.text }]}><Text style={[styles.label, { color: theme.text }]}> Category: </Text> {book?.volumeInfo?.categories}</Text>
+    <Text style={[styles.text2, { color: theme.text }]}><Text style={[styles.label, { color: theme.text }]}> Publisher: </Text> {book?.volumeInfo?.publisher}</Text>
+    <Text style={[styles.text2, { color: theme.text }]}><Text style={[styles.label, { color: theme.text }]}> PublishedDate: </Text> {book?.volumeInfo?.publishedDate}</Text>
+    <Text style={[styles.text2, { color: theme.text }]}><Text style={[styles.label, { color: theme.text }]}> PageCount: </Text> {book?.volumeInfo?.pageCount}</Text>
+    <Text style={[styles.text2, { color: theme.text }]}><Text style={[styles.label, { color: theme.text }]}> PrintType: </Text> {book?.volumeInfo?.printType}</Text>
     <Pressable onPress={()=> url && Linking.openURL(url)}>
     <Text style={styles.linkText}> Link  </Text>
     {/* {book?.volumeInfo?.imageLinks?.smallThumbnail} */}
@@ -54,6 +59,7 @@ function  VolumeInfo({route}){
 }
 function Info({route}){
   const {book}=route.params
+   const { theme } = useContext(ThemeContext);
 
   const [readMore, setReadMore] = useState(false)
 const description = book?.volumeInfo?.description 
@@ -66,12 +72,14 @@ const displayedText = readMore ? description : description.length > 200  ? descr
         // backgroundColor: '#f4d9bbff',
         //  padding: 30,
       }}>
-  <View style={styles.tabContent}> 
-  <Text style={{ fontSize: 18, lineHeight: 25 }}><Text style={styles.label}> Description: </Text> {displayedText} </Text>
+  <View style={[styles.tabContent, { backgroundColor: theme.background }]}> 
+  <Text style={{ fontSize: 18, lineHeight: 25 ,color:theme.text}}><Text style={[styles.label, { color: theme.text }]}> Description: </Text> {displayedText} </Text>
   {description.length > 200 && (
-    <Text
-      onPress={toggleReadMore}
-      style={{ color: 'green', marginTop: 8 }}>{readMore ? 'Read Less' : 'Read More'}</Text>
+    <Pressable onPress={toggleReadMore}>
+  <Text style={{ color: 'green', marginTop: 8 ,textDecorationLine:'underline',fontSize:18}}>
+    {readMore ? 'Read Less' : 'Read More'}
+  </Text>
+</Pressable>
   )}
   </View> 
   </ScrollView>)
@@ -80,16 +88,17 @@ const displayedText = readMore ? description : description.length > 200  ? descr
 function  Authors({route}){
   const {book}=route.params
   const authors = book?.volumeInfo?.authors
+  const { theme } = useContext(ThemeContext);
   //  const authors = book?.authors
   // const {volumeInfo}=book
  return (
-    <View style={styles.tabContent}>
+    <View style={[styles.tabContent, { backgroundColor: theme.background }]}>
       {Array.isArray(authors) ? (
         authors.map((author, index) => (
-          <Text key={index} style={styles.text3}>{author}</Text>
+          <Text key={index} style={[styles.text3, { color: theme.text }]}>{author}</Text>
         ))
       ) : (
-        <Text style={styles.text3}>No authors available</Text>
+        <Text style={[styles.text3, { color: theme.text }]}>No authors available</Text>
       )}
     </View>
   );
@@ -101,7 +110,7 @@ export default function BookDetails() {
   const route = useRoute();
   const passedBook = route.params?.book;
   const bookId = route.params?.id;   // comes from deep link
-
+ const { theme, toggleTheme, isDarkTheme } = useContext(ThemeContext);
   const allBooks = useSelector((state) => state.books.apiBooks || []);
   const [book, setBook] = React.useState(passedBook || null);
 
@@ -128,18 +137,25 @@ export default function BookDetails() {
    const title= book?.title
   return (
     <SafeAreaView style={{ flex: 1 }}  edges={[]}>
-        <View style={styles.header}>
+     <StatusBar
+  barStyle="dark-content"          // dark icons for light bg
+  backgroundColor="#f4d9bbff"      // match header bg or a slightly darker shade
+  translucent={false}
+/>
+
+        <View style={[styles.header, { backgroundColor: theme.background }]}>
           <Image source={{ uri: thumbnail }} style={styles.imageBook}/>
         </View>
         <Tab.Navigator  screenOptions={{
           tabBarStyle:{
-            backgroundColor:'white',
+            // backgroundColor:'white',
+            backgroundColor: theme.cardBackground,
   
           },tabBarLabelStyle:{
             fontSize:14,
              fontWeight:'bold',
             // color:'black',
-          
+             color: theme.text,
           },
           tabBarActiveTintColor:'green',
           tabBarInactiveTintColor:'gray',

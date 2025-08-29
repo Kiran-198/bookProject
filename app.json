@@ -4,7 +4,7 @@
     "slug": "bookProject",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/splash.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -15,17 +15,23 @@
     "ios": {
       "supportsTablet": true
     },
-    "android": {
+   "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.bookProject"
+      "package": "com.anonymous.bookProject",
+      "googleServicesFile": "./google-services.json" 
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "scheme": "bookapp"
+    "scheme": "bookapp",
+    "extra": {
+      "eas": {
+        "projectId": "040376b7-cea0-4ab8-850f-166855959161"
+      }
+    }
   }
 }

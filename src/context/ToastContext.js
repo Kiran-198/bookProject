@@ -8,7 +8,7 @@ export const ToastProvider = ({ children }) => {
 
   const showToast = (msg) => {
     setMessage(msg);
-    setTimeout(() => setMessage(null), 2000); // auto hide after 2s
+    setTimeout(() => setMessage(null), 5000); // auto hide after 2s
   };
 
   return (
@@ -30,7 +30,7 @@ export const useToast = () => {
 const styles = StyleSheet.create({
   toast: {
     position: "absolute",
-    bottom: 50,
+    bottom: 100,
     alignSelf: "center",
     backgroundColor: "rgba(0, 0, 0, 0.8)",
     paddingHorizontal: 20,

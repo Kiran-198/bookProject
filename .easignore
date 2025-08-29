@@ -1,0 +1,10 @@
+# ignore unnecessary stuff in EAS upload
+node_modules
+android
+ios
+.expo
+.expo-shared
+*.log
+*.tmp
+dist
+build

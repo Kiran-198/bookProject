@@ -1,78 +1,54 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef ,useCallback} from 'react';
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Modal, TouchableWithoutFeedback,Dimensions, StyleSheet} from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux'; //redux
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useMemo } from 'react';//to memoise filtered books 
-
+import { useMemo ,useContext} from 'react';//to memoise filtered books
+import { ThemeContext } from '../context/ThemeContext'; 
 import { fetchBooks } from '../Redux/Book/BookSlice';//redux
 import Bookcard from '../components/Bookcard';
 import SearchBar from '../components/searchBar';
-
+import { StatusBar ,Animated} from 'react-native';
+import * as NavigationBar from 'expo-navigation-bar'
 import CategoryModal from '../components/CategoryModal'; // for modal 
 const categories = ['All', 'Business', 'Computers', 'Economics']; //modal
-
+import { useFocusEffect } from '@react-navigation/native';
 const screenWidth = Dimensions.get('window').width;
+import { useToast } from '../context/ToastContext';
+import { RefreshControl } from 'react-native';
 
 export default function HomeScreen() {
+   const { showToast } = useToast()
   const navigation = useNavigation();
   const dispatch = useDispatch();
   const flatListRef = useRef(null);//scrollingToTop
-  const [startIndex, setStartIndex] = useState(0)
+  // const [setStartIndex] = useState(0)
   const [isFetchingMore, setIsFetchingMore] = useState(false);
-
+ const { theme, toggleTheme, isDarkTheme } = useContext(ThemeContext);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [isGridView, setIsGridView] = useState(true);
   const [filterVisible, setFilterVisible] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
-
-
-//  const books = useSelector(state => state.books.books) || [];
-// const allBooks = useSelector((state) => [
-//   ...state.books.localBooks,
-//   ...state.books.apiBooks,
-// ])
-
+  const rotation = useRef(new Animated.Value(0)).current
+  const [refreshing,setRefreshing]=useState(false)
 const localBooks = useSelector(state => state.books.localBooks);
 const apiBooks = useSelector(state => state.books.apiBooks);
 const editedApiBooks = useSelector(state => state.books.editedApiBooks)
-// useEffect(() => {
-//   console.log("API Books:", apiBooks);
-// }, [apiBooks]);
+
  const mergedApiBooks = useMemo(() => {
     return apiBooks.map(book => editedApiBooks[book.id] || book);
   }, [apiBooks, editedApiBooks]);
+  
   const allBooks = useMemo( () => [...localBooks, ...mergedApiBooks], 
                                [localBooks, mergedApiBooks])
 
-// const localBooks = useSelector((state) => state.books.localBooks);
-// console.log("helllo books",localBooks);
+const { loading, hasMore, startIndex} = useSelector((state) => state.books);
 
-//  const apiBooks = useSelector((state) => state.books.apiBooks);
-const loading = useSelector((state) => state.books.loading);
-
-// const allBooks = [...localBooks, ...apiBooks,...books]
   const isFirstLoad = useRef(true)
-
+  const shownToastRef = useRef(false)
   const numColumns = isGridView ? (screenWidth > 720 ? 3 : 2) : 1;
-
-// useEffect(() => {
-// //    const newStartIndex = 0
-// //   setStartIndex(newStartIndex);
-// setStartIndex(0); 
-//   setIsFetchingMore(false);
-
-//   dispatch(fetchBooks({
-//     searchTerm: search || 'all',
-//     category: selectedCategory === 'All' ? '' : selectedCategory,
-//     startIndex: 0
-//   }));
-//   if (flatListRef.current) {
-//     flatListRef.current.scrollToOffset({ offset: 0, animated: false });
-//   }
-// }, [search, selectedCategory]);
 
 useEffect(() => {
   if (isFirstLoad.current) {
@@ -100,44 +76,67 @@ const filteredBooks = useMemo(() => {
   });
 }, [allBooks, search, selectedCategory])
 
-
   const remainder = filteredBooks.length % numColumns;
-  // const fillers = remainder === 0 ? [] : Array(numColumns - remainder).fill({});
-  // const paddedBooks = [...filteredBooks, ...fillers];
   const paddedBooks = [...filteredBooks];
-if (paddedBooks.length % 2 !== 0) {
-  paddedBooks.push({ empty: true });
+if (remainder !== 0) {
+  paddedBooks.push(...Array(numColumns - remainder).fill({ empty: true }));
 }
 //  console.log("Books from Redux:", books);
-  const renderItem = ({ item }) => {
+  const renderItem = useCallback(({ item }) => {
     // console.log(item)
     if (!item || !item.volumeInfo) {
-    return <View style={{ flex: 1 }} />;
+    return <View style={{ flex: 1, minHeight: 200 }} />;
   }
     return <Bookcard book={item}
       id={item.id}
       isGridView={isGridView}
       navigation={navigation} />;
-  };
-  const handleLoadMore = () => {
-  if (!loading){
+  },[isGridView,navigation])
 
-  const newStartIndex = startIndex + 20;
-  setStartIndex(newStartIndex);
-  setIsFetchingMore(true);
+ const handleLoadMore = useCallback(() => {
+   if (loading) return; 
+   if (hasMore) { dispatch(fetchBooks({ searchTerm: search ||
+     'all', category: selectedCategory === 'All' ? '' : selectedCategory, startIndex: startIndex + 20, })); } 
+   else { 
+    showToast("No more books available"); 
+  } }, [dispatch, search, selectedCategory, hasMore, loading, startIndex])
+
+const handleRefresh = useCallback(() => {
+  setRefreshing(true);
 
   dispatch(fetchBooks({
     searchTerm: search || 'all',
     category: selectedCategory === 'All' ? '' : selectedCategory,
-    startIndex: newStartIndex,
-    // append: true 
-  }));
-}}
+    startIndex: 0, // always refresh from start
+  })).finally(() => {
+    setRefreshing(false);
+  });
+}, [dispatch, search, selectedCategory])
+
+useEffect(() => {
+  Animated.timing(rotation, {
+    toValue: isDarkTheme ? 1 : 0,
+    duration: 600,
+    useNativeDriver: true, // better performance
+  }).start();
+}, [isDarkTheme]);
+
+const spin = rotation.interpolate({
+  inputRange: [0, 1],
+  outputRange: ["0deg", "360deg"],
+});
+
+
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.bigContainer}>
-        <View style={styles.headerBox}>
-          <Text style={styles.title}>BookList</Text>
+        {/* <StatusBar
+        barStyle={isDarkTheme ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.headerBackground} 
+        animated={true}
+        /> */}
+      <SafeAreaView style={{flex:1,backgroundColor:theme.background }}>
+        <View  style={[styles.headerBox, { backgroundColor: theme.headerBackground }]}>
+          <Text style={[styles.title, { color: theme.text }]}>BookList</Text>
           <View style={styles.searchContainer}>
             <SearchBar
               search={search}
@@ -153,20 +152,23 @@ if (paddedBooks.length % 2 !== 0) {
           </View>
 
           <View style={styles.head2}>
-            <Text style={styles.textHead}>Popular Books</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('AddedBook')} style={styles.personIcon}>
-              <Ionicons name="person" size={28} color="black" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('AddBook')} style={styles.plusIcon}>
-              <Ionicons name="add" size={28} color="black" />
+            <Text style={[styles.textHead, { color: theme.text }]}>Popular Books</Text>
+            <TouchableOpacity onPress={toggleTheme}>
+          <Animated.View style={{ transform: [{ rotate: spin }] }}>
+            <Ionicons name={isDarkTheme ? "sunny" : "moon"} size={28} color={theme.icon} />
+          </Animated.View>
+        </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => navigation.navigate('AddBook')} style={[styles.plusIcon,{borderColor:theme.borderColor}]}>
+              <Ionicons name="add" size={28} color={theme.icon}   />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setIsGridView(prev => !prev)} style={styles.BtnOption}>
-              <Ionicons name={isGridView ? "list" : "grid"} size={24} color="black" />
+              <Ionicons name={isGridView ? "list" : "grid"} size={24} color={theme.icon} />
             </TouchableOpacity>
           </View>
         </View>
 
-        <View style={styles.cards}>
+        <View style={[styles.cards, { backgroundColor: theme.cardBackground }]}>
         
             <FlatList
               key={isGridView ? 'grid' : 'list'}
@@ -181,13 +183,20 @@ if (paddedBooks.length % 2 !== 0) {
               scrollEventThrottle={16}
               renderItem={renderItem}
               onEndReached={handleLoadMore}
-              onEndReachedThreshold={0.5}               
+              onEndReachedThreshold={0.5} 
+               refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                colors={['#191a1bff']} // Android spinner color
+                tintColor="#191a1bff"   // iOS spinner color
+              />
+            }
               ListFooterComponent={() => (
-                isFetchingMore ? (
+                loading && hasMore ? (
                     <ActivityIndicator size="small" style={{ marginVertical: 10 }} />
                 ) : null
                 )}
-
             />
           
             <CategoryModal
@@ -228,7 +237,7 @@ const styles = StyleSheet.create({
         // borderRadius: 0,
         // margin:10,
         position:'relative',
-        backgroundColor:'white',
+        // backgroundColor:'white',
         backgroundColor:'#f5be84ff',
         // borderWidth:1
     },
@@ -242,7 +251,7 @@ const styles = StyleSheet.create({
         
     input: {
         margin: 20,
-        paddingVertical: 10,
+        paddingVertical: 20,
         paddingHorizontal: 20,
         borderWidth: 0.5,
         borderRadius: 10,
@@ -271,7 +280,7 @@ const styles = StyleSheet.create({
     plusIcon:{
         // position:'absolute',
     // right:50,
-    borderWidth:0.5
+    // borderWidth:0.5
 },
 personIcon:{
      borderWidth:0.5,
@@ -333,42 +342,5 @@ selectedCategoryText:{
     fontWeight:'500',
     color:'grey',
 },
-
-
-    //  imageBook: {
-    //     width: '100%',
-    //     height: 190,
-    //     borderRadius: 10,
-    //      //  flex: 1,
-    // },
-    // eachCard: {
-    //     flex: 1,
-    //     overflow: 'hidden',
-    //     borderWidth: 1,
-    //     paddingHorizontal: 10,
-    //     paddingVertical: 10,
-    //     margin: 10,
-    //     borderRadius: 15,
-    //     justifyContent: 'center',
-    //     alignItems: 'center',
-    //     // aspectRatio: 1,
-    //     //    flexDirection:'row',
-    //     // backgroundColor:'red',
-    // },
-    // text1: {
-    //     fontSize: 15,
-    //     marginTop: 10
-    // },
-    // imageWrap:{
-    //     flex:1,
-    //     overflow: 'hidden',
-    //     borderRadius: 15,
-    //     justifyContent: 'center',
-    //     alignItems: 'center',
-    //     height:'90%',
-    //     width:'100%',
-    //     aspectRatio: 0.,
-    //     // borderWidth:10
-    // },
 })
 

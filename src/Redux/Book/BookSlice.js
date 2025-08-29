@@ -14,10 +14,14 @@ export const fetchBooks = createAsyncThunk('books/fetchBooks', async ({ searchTe
   ...book,
   isApiBook: true,
 }));
-return books;
+return {
+        books,
+        totalItems: response.data.totalItems || 0,
+        startIndex,
+      }
   } catch (error) {
     console.error('Error fetching books:', error);
-    return []
+    return []; 
   }
 }
 );
@@ -32,6 +36,8 @@ const bookSlice = createSlice({
     error: null,
     searchTerm: '',
     category: 'All',
+    totalItems: 0,
+    hasMore: true,
     startIndex: 0,
   },
   reducers: {
@@ -44,11 +50,12 @@ const bookSlice = createSlice({
         state.localBooks[index] = action.payload;
       }
     },
-   updateApiBook: (state, action) => {
-  const id = action.payload.id;
+updateApiBook: (state, action) => {
+  const { id, ...changes } = action.payload;
   state.editedApiBooks[id] = {
-    ...state.editedApiBooks[id], // keep previous edits
-    ...action.payload             // merge new edits
+    ...(state.editedApiBooks[id] || {}),
+    ...changes,
+    isApiBook: true,
   };
 },
     setSearchTerm: (state, action) => {
@@ -65,6 +72,9 @@ const bookSlice = createSlice({
     },
     resetBooks: (state) => {
       state.apiBooks = [];
+      state.totalItems = 0;
+      state.hasMore = true;
+      state.startIndex = 0;
     },
   },
   extraReducers: (builder) => {
@@ -74,11 +84,20 @@ const bookSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchBooks.fulfilled, (state, action) => {
-        if (action.meta.arg.startIndex === 0) {
-          state.apiBooks = action.payload;
+        const { books, totalItems, startIndex } = action.payload;
+
+        if (startIndex === 0) {
+          state.apiBooks = books;
         } else {
-          state.apiBooks = [...state.apiBooks, ...action.payload];
+          // append but avoid duplicates by id
+          const existingIds = new Set(state.apiBooks.map(b => b.id));
+          const newBooks = books.filter(b => !existingIds.has(b.id));
+          state.apiBooks = [...state.apiBooks, ...newBooks];
         }
+
+        state.totalItems = totalItems;
+        state.hasMore = state.apiBooks.length < totalItems;
+        state.startIndex = startIndex;
         state.loading = false;
       })
       .addCase(fetchBooks.rejected, (state, action) => {

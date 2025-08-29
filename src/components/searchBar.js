@@ -12,6 +12,9 @@ const SearchBar = ({ searchTerm, onChangeSearch }) => {
         value={searchTerm}
         onChangeText={onChangeSearch}
         style={styles.input}
+           multiline={false}
+        numberOfLines={1}
+        scrollEnabled
       />
     </View>
   );
@@ -25,14 +28,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     alignItems: 'center',
     margin: 10,
+      position: 'relative',
   },
   icon: {
     marginRight: 5,
   },
   input: {
     flex: 1,
-    height: 40,
+    height: 50,
     fontSize: 16,
+    paddingRight: 40,
   },
 });
 
