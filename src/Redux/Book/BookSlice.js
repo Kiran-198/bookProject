@@ -76,6 +76,14 @@ updateApiBook: (state, action) => {
       state.hasMore = true;
       state.startIndex = 0;
     },
+    resetLocalBooks: (state) => {
+    state.localBooks = [];
+  },
+    deleteLocalBook: (state, action) => {
+    state.localBooks = state.localBooks.filter(
+      (book) => book.id !== action.payload
+    );
+  },
   },
   extraReducers: (builder) => {
     builder
@@ -96,7 +104,12 @@ updateApiBook: (state, action) => {
         }
 
         state.totalItems = totalItems;
-        state.hasMore = state.apiBooks.length < totalItems;
+        // state.hasMore = state.apiBooks.length < totalItems;
+        if (books.length === 0) {
+    state.hasMore = false;
+  } else {
+    state.hasMore = state.apiBooks.length < totalItems;
+  }
         state.startIndex = startIndex;
         state.loading = false;
       })
@@ -116,5 +129,7 @@ export const {
   resetPagination,
   incrementStartIndex,
   resetBooks,
+  resetLocalBooks,
+  deleteLocalBook
 } = bookSlice.actions;
 export default bookSlice.reducer;

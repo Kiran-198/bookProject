@@ -143,7 +143,7 @@ export default function BookDetails() {
   translucent={false}
 />
 
-        <View style={[styles.header, { backgroundColor: theme.background }]}>
+        <View style={[styles.header, { backgroundColor: theme.headerBackground }]}>
           <Image source={{ uri: thumbnail }} style={styles.imageBook}/>
         </View>
         <Tab.Navigator  screenOptions={{

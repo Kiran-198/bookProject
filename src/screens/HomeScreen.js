@@ -17,6 +17,8 @@ import { useFocusEffect } from '@react-navigation/native';
 const screenWidth = Dimensions.get('window').width;
 import { useToast } from '../context/ToastContext';
 import { RefreshControl } from 'react-native';
+import { persistor } from '../Redux/store';
+import { resetLocalBooks } from '../Redux/Book/BookSlice';
 
 export default function HomeScreen() {
    const { showToast } = useToast()
@@ -93,14 +95,24 @@ if (remainder !== 0) {
       navigation={navigation} />;
   },[isGridView,navigation])
 
- const handleLoadMore = useCallback(() => {
-   if (loading) return; 
-   if (hasMore) { dispatch(fetchBooks({ searchTerm: search ||
-     'all', category: selectedCategory === 'All' ? '' : selectedCategory, startIndex: startIndex + 20, })); } 
-   else { 
-    showToast("No more books available"); 
-  } }, [dispatch, search, selectedCategory, hasMore, loading, startIndex])
+const [page, setPage] = useState(0);
 
+const handleLoadMore = useCallback(() => {
+  if (loading) return;
+
+  if (!hasMore) {
+    showToast("No more books available");
+    return;
+  }
+
+  dispatch(fetchBooks({
+    searchTerm: search || 'all',
+    category: selectedCategory === 'All' ? '' : selectedCategory,
+    startIndex: startIndex + 20,
+  }));
+}, [dispatch, search, selectedCategory, hasMore, loading, startIndex])
+
+  
 const handleRefresh = useCallback(() => {
   setRefreshing(true);
 
@@ -126,17 +138,28 @@ const spin = rotation.interpolate({
   outputRange: ["0deg", "360deg"],
 });
 
+// useEffect(() => {
+//   console.log("API Books:", apiBooks.length);
+// }, [apiBooks]);
 
+// useEffect(() => {
+//   console.log("Local Books:", localBooks.length);
+// }, [localBooks])
+const onEndReachedCalledDuringMomentum = useRef(false)
   return (
-    <SafeAreaProvider>
-        {/* <StatusBar
+    <SafeAreaView style={{flex:1,backgroundColor:theme.background }}>
+        <StatusBar
         barStyle={isDarkTheme ? 'light-content' : 'dark-content'}
         backgroundColor={theme.headerBackground} 
         animated={true}
-        /> */}
-      <SafeAreaView style={{flex:1,backgroundColor:theme.background }}>
+        />
         <View  style={[styles.headerBox, { backgroundColor: theme.headerBackground }]}>
+          <View style={styles.newHead}>
           <Text style={[styles.title, { color: theme.text }]}>BookList</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('localBooks')} style={[styles.newIcon,{borderColor:theme.borderColor}]}>
+            <Ionicons name="cart" size={35} color={theme.icon} />
+          </TouchableOpacity>
+        </View>
           <View style={styles.searchContainer}>
             <SearchBar
               search={search}
@@ -158,7 +181,7 @@ const spin = rotation.interpolate({
             <Ionicons name={isDarkTheme ? "sunny" : "moon"} size={28} color={theme.icon} />
           </Animated.View>
         </TouchableOpacity>
-
+           
             <TouchableOpacity onPress={() => navigation.navigate('AddBook')} style={[styles.plusIcon,{borderColor:theme.borderColor}]}>
               <Ionicons name="add" size={28} color={theme.icon}   />
             </TouchableOpacity>
@@ -182,8 +205,18 @@ const spin = rotation.interpolate({
               }}
               scrollEventThrottle={16}
               renderItem={renderItem}
-              onEndReached={handleLoadMore}
-              onEndReachedThreshold={0.5} 
+              // onEndReached={handleLoadMore}
+              onEndReached={() => {
+    if (!onEndReachedCalledDuringMomentum.current) {
+      handleLoadMore();
+      onEndReachedCalledDuringMomentum.current = true;
+    }
+  }}
+  onMomentumScrollBegin={() => {
+    onEndReachedCalledDuringMomentum.current = false;
+  }}
+              onEndReachedThreshold={0.1} 
+              initialNumToRender={20}
                refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -213,7 +246,6 @@ const spin = rotation.interpolate({
           )}
         </View>
       </SafeAreaView>
-    </SafeAreaProvider>
   );
 }
 
@@ -226,11 +258,23 @@ const styles = StyleSheet.create({
         //  paddingBottom:20
         //  alignItems:'center'  
     },
+    newHead:{
+      flexDirection: 'row',
+       alignItems: 'center',
+        justifyContent: 'space-between', 
+        paddingHorizontal:20, 
+        paddingVertical: 10 ,
+        marginTop:10
+    },
+    newIcon:{
+      // marginTop:10
+      marginRight:10
+    },
     title: {
-        alignSelf: 'center',
-        fontSize: 30,
+        // alignSelf: 'center',
+        fontSize: 40,
         fontWeight: 'bold',
-          marginTop:10
+          // marginTop:10
         //  backgroundColor:'red'
     },
     headerBox: {
@@ -282,6 +326,9 @@ const styles = StyleSheet.create({
     // right:50,
     // borderWidth:0.5
 },
+intoIcon:{
+  // borderWidth:0.5
+},
 personIcon:{
      borderWidth:0.5,
      borderRadius:10,
@@ -310,7 +357,7 @@ personIcon:{
   alignItems:'center',
   padding:10,
   marginLeft:15,
-  marginRight:15,
+  marginRight:12,
 //   borderWidth:1
     },
     textHead:{

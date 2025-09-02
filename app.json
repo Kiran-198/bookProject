@@ -21,7 +21,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.bookapp",
+      "package": "com.bookappgit add app.json",
       "googleServicesFile": "./google-services.json" 
     },
     "web": {

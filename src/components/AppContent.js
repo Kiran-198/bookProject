@@ -9,7 +9,7 @@ import HomeScreen from "../screens/HomeScreen";
 import BookDetails from "../screens/BookDetails";
 import AddBookScreen from "../screens/AddBookScreen";
 import AddedBookScreen from "../screens/AddedBookScreen";
-
+import localBookScreen from "../screens/localBookScreen";
 const linking = {
   prefixes: ["bookapp://", "https://mybookapp.onrender.com"],
   config: { screens: { Home: "home", BookDetails: "book/:id" } },
@@ -49,7 +49,7 @@ export default function AppContent() {
       />
 
       <NavigationContainer linking={linking} fallback={<Text>Loading..</Text>}>
-        <Stack.Navigator initialRouteName="Home">
+        <Stack.Navigator initialRouteName="Home"  >
           <Stack.Screen
             name="Home"
             component={HomeScreen}
@@ -96,7 +96,7 @@ export default function AppContent() {
             }}
           />
           <Stack.Screen name="AddBook" component={AddBookScreen} />
-          <Stack.Screen name="AddedBook" component={AddedBookScreen} />
+          <Stack.Screen name="localBooks" component={localBookScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </>

@@ -3,6 +3,7 @@ import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native'
 import { Dimensions } from 'react-native';
 import { useContext} from 'react';
 import { ThemeContext } from "../context/ThemeContext";
+
 const Bookcard = React.memo(({ book,id,navigation, isGridView }) => {
     const title = book?.volumeInfo?.title
     const publisher=book?.volumeInfo?.publisher

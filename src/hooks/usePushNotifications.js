@@ -77,9 +77,9 @@ async function registerForPushNotificationsAsync() {
   try {
     if (Platform.OS === "android") {
       // For Android standalone apps → FCM token
-      const tokenResponse = await Notifications.getDevicePushTokenAsync();
-      token = tokenResponse.data;
-      console.log("FCM Device Token:", token);
+      const tokenResponse = await Notifications.getExpoPushTokenAsync();
+     token = tokenResponse.data;
+      console.log("Expo Push Token:", token);
     } else {
       // For iOS or Expo Go → Expo push token
       const tokenResponse = await Notifications.getExpoPushTokenAsync();

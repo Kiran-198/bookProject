@@ -223,11 +223,11 @@ if (bookToEdit) {
     if (bookToEdit?.isApiBook) {
       dispatch(updateApiBook(newBook));   
       showToast("Book Edited ");
-      await triggerLocalNotification(trimmedTitle); // ✅ works now
+      // await triggerLocalNotification(trimmedTitle); // ✅ works now
     } else {
       dispatch(updateLocalBook(newBook));
       showToast("Book Edited ");
-      await triggerLocalNotification(trimmedTitle); // ✅ works now
+      // await triggerLocalNotification(trimmedTitle); // ✅ works now
     }
   } else {
     dispatch(addLocalBook(newBook));  
@@ -245,6 +245,11 @@ if (bookToEdit) {
   return (
     <SafeAreaProvider>
       <SafeAreaView style={{ flex: 1 }}>
+        <StatusBar
+          barStyle="dark-content"          // dark icons for light bg
+          backgroundColor="#f4d9bbff"      // match header bg or a slightly darker shade
+          translucent={false}
+        />
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={80} >
         <ScrollView  keyboardShouldPersistTaps="handled">
           <View style={[styles.container, { backgroundColor: theme.background }]}>
